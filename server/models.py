@@ -1,10 +1,14 @@
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy_serializer import SerializerMixin
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import validates
+from sqlalchemy import CheckConstraint
+import enum
+import re
 
-from app import bcrypt
+from config import bcrypt, db
 
 db = SQLAlchemy()
 
@@ -18,6 +22,12 @@ class User(db.Model, SerializerMixin):
     admin = db.Column(db.String, default=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+    orders = db.relationship('Order', back_populates='user')
+    reviews = db.relationship('Review', back_populates='user')
+    favorites = db.relationship('Favorite', back_populates='user')
+
+    serialize_rules = ('-orders', '-reviews', '-favorites')
 
      @hybrid_property
     def password_hash(self):
@@ -36,7 +46,7 @@ class User(db.Model, SerializerMixin):
     @validates('email')
     def validate_email(self, key, email):
         users = User.query.all()
-        emails = [user.email for user in user]
+        emails = [user.email for user in users]
         if not email:
             raise ValueError('Email must be provided')
         elif email in emails:
@@ -59,16 +69,90 @@ class User(db.Model, SerializerMixin):
             raise ValueError('First name must be provided')
         return value
     
-    def __repr__(self):
-        return f'CLIMBER: ID: {self.id}, Name {self.first_name}, Username: {self.username}, Admin: {self.admin}'
 
     def __repr__(self):
         return f'USER: ID: {self.id}, Name {self.name}, Email: {self.email}, Admin: {self.admin}'
 
 
+class Product(db.Model, SerializerMixin):
+    __tablename__ = 'products'
 
-# username
-# email
-# password_hash
-# created_at
-# updated_at
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    price = db.Column(db.Float)
+    image = db.Column(db.String)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+    reviews = db.relationship('Review', back_populates='product')
+    favorites = db.relationship('Favorite', back_populates='product')
+
+    serialize_rules = ('-reviews', '-favorites')
+
+
+class Category(db.Model, SerializerMixin):
+    __tablename__ = 'categories'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+
+class OrderStatus(enum.Enum):
+    PENDING = "pending"
+    SHIPPED = "shipped"
+    DELIVERED = "delivered"
+    CANCELED = "canceled"
+
+class Order(db.Model, SerializerMixin):
+    __tablename__ = 'orders'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    total_price = Column(Numeric(precision=10, scale=2))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+    user = db.relationship('User', back_populates='orders')
+    serialize_rules = ('-user',)
+
+class Review(db.Model, SerializerMixin):
+   __tablename__ = 'reviews'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
+    rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.String, nullable=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+    __table_args__ = (
+        CheckConstraint("rating >= 1 AND rating <= 5", name="valid_rating_range"),
+    )
+
+    user = db.relationship('User', back_populates='reviews')
+    product = db.relationship('Product', back_populates='reviews')
+
+    serialize_rules = ('-user', '-product')
+
+
+class Favorite(db.Model, SerializeMixin):
+    __tablename__ = 'favorites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+    user = db.relationship('User', back_populates='favorites')
+    product = db.relationship('Product', back_populates='favorites')
+
+    serialize_rules = ('-user', '-product')
+
+
+
+
+
