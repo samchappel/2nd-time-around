@@ -1,23 +1,19 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import './tailwind.css';
+import IntroSection from './components/IntroSection';
+import ServicesSection from './components/ServicesSection';
+import ReviewsSection from './components/ReviewsSection';
+import ContactUsSection from './components/ContactUsSection';
+import FooterSection from './components/FooterSection';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div>
+      <IntroSection />
+      <ServicesSection />
+      <ReviewsSection />
+      <ContactUsSection />
+      <FooterSection />
     </div>
   );
 }
