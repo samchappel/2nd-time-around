@@ -16,7 +16,8 @@ class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
+    first_name = db.Column(db.String)
+    last_name = db.Column(db.String)
     email = db.Column(db.String)
     _password_hash = db.Column(db.String)
     admin = db.Column(db.String, default=False)
@@ -80,14 +81,18 @@ class Product(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
     price = db.Column(db.Float)
+    description = db.Column(db.String)
     image = db.Column(db.String)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
     reviews = db.relationship('Review', back_populates='product')
     favorites = db.relationship('Favorite', back_populates='product')
+    order_items = db.relationship('OrderItem', back_populates='product')
+    category = db.relationship('Category', back_populates='products')
 
-    serialize_rules = ('-reviews', '-favorites')
+    serialize_rules = ('-reviews', '-favorites', '-category')
 
 
 class Category(db.Model, SerializerMixin):
@@ -97,6 +102,10 @@ class Category(db.Model, SerializerMixin):
     name = db.Column(db.String)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
+
+    products = db.relationship('Product', back_populates='category')
+
+    serialize_rules = ('-products',)
 
 
 class OrderStatus(enum.Enum):
@@ -116,7 +125,25 @@ class Order(db.Model, SerializerMixin):
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
     user = db.relationship('User', back_populates='orders')
+    order_items = db.relationship('OrderItem', back_populates='order')
     serialize_rules = ('-user',)
+
+    @property
+    def total_price(self):
+        return sum(order_item.product.price * order_item.quantity for order_item in self.order_items)
+
+class OrderItem(db.Model, SerializerMixin):
+    __tablename__ = 'order_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'))
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
+    quantity = db.Column(db.Integer)
+
+    order = db.relationship('Order', back_populates='order_items')
+    product = db.relationship('Product', back_populates='order_items')
+
+    serialize_rules = ('-order', '-product')
 
 class Review(db.Model, SerializerMixin):
    __tablename__ = 'reviews'
